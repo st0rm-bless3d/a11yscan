@@ -1,0 +1,62 @@
+{
+  "name": "a11yscan",
+  "version": "0.1.0",
+  "description": "Open-source WCAG accessibility scanner CLI and GitHub Action (headless Chromium + axe-core). Scans URLs on your own machine's network, prioritized report by impact, optional LLM fix hints.",
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "wcag",
+    "axe-core",
+    "playwright",
+    "cli",
+    "github-action"
+  ],
+  "license": "MIT",
+  "author": "althor.dev",
+  "homepage": "https://a11yscan.althor.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/st0rm-bless3d/a11yscan.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "a11yscan": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "action.yml",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "ipaddr.js": "^2.2.0",
+    "playwright": "^1.50.1",
+    "undici": "^6.21.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "bugs": {
+    "url": "https://github.com/st0rm-bless3d/a11yscan/issues"
+  }
+}

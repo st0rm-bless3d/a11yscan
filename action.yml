@@ -1,0 +1,72 @@
+name: "a11yscan"
+description: "Run the a11yscan WCAG accessibility scanner (axe-core + headless Chromium) against a URL and fail the job on violations at or above a severity threshold."
+author: "althor.dev"
+branding:
+  icon: "eye"
+  color: "blue"
+
+inputs:
+  url:
+    description: "URL to scan (must be reachable from the runner, e.g. a deployed preview URL or a server you started in an earlier step)."
+    required: true
+  min-impact:
+    description: "Minimum impact level to report and fail on: minor | moderate | serious | critical."
+    required: false
+    default: "serious"
+  fix-hints:
+    description: "Request plain-English fix hints from an OpenAI-compatible LLM. Requires A11YSCAN_LLM_URL / A11YSCAN_LLM_KEY / A11YSCAN_LLM_MODEL as env or secrets in the calling workflow; otherwise this degrades to axe's own help text automatically."
+    required: false
+    default: "false"
+  json:
+    description: "Emit the machine-readable JSON report to stdout instead of the human report."
+    required: false
+    default: "false"
+
+outputs:
+  exit-code:
+    description: "The exit code a11yscan produced (0 = clean at threshold, 1 = violations found, 2 = scan error)."
+    value: ${{ steps.scan.outputs.exit-code }}
+
+# This action runs the CLI that ships INSIDE this repository at
+# ${{ github.action_path }}. It deliberately does not install from the npm
+# registry: the package is distributed via GitHub, so pinning the action ref
+# (a tag, or a full commit SHA for the strongest guarantee) pins the scanner
+# code too. `dist/` is committed, so there is no build step here.
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install a11yscan runtime dependencies
+      shell: bash
+      run: npm ci --omit=dev --prefix "${{ github.action_path }}"
+
+    - name: Install Chromium for Playwright
+      shell: bash
+      run: npx --yes playwright@1.50.1 install --with-deps chromium
+
+    - name: Run a11yscan
+      id: scan
+      shell: bash
+      env:
+        A11YSCAN_URL: ${{ inputs.url }}
+        A11YSCAN_MIN_IMPACT: ${{ inputs.min-impact }}
+        A11YSCAN_FIX_HINTS: ${{ inputs.fix-hints }}
+        A11YSCAN_JSON: ${{ inputs.json }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set +e
+        ARGS=("$A11YSCAN_URL" "--exit-code" "--min-impact" "$A11YSCAN_MIN_IMPACT")
+        if [ "$A11YSCAN_FIX_HINTS" = "true" ]; then
+          ARGS+=("--fix-hints")
+        fi
+        if [ "$A11YSCAN_JSON" = "true" ]; then
+          ARGS+=("--json")
+        fi
+        node "$ACTION_PATH/dist/cli.js" "${ARGS[@]}"
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        exit "$code"
