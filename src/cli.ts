@@ -11,6 +11,7 @@
 //      regardless of --exit-code, because a failed scan is not "clean."
 
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { closeBrowser, scanUrl } from "./scan.js";
 import { fixGuidanceFor } from "./fixhints.js";
 import { applyFixHints, decideExitCode, isImpact, type Impact, type ScanReport } from "./report.js";
@@ -157,7 +158,24 @@ async function main(): Promise<number> {
 // Only run when executed directly as the CLI entry, not when imported (e.g.
 // by tests exercising parseArgs()) — importing this module must never launch
 // a browser, call process.exit(), or otherwise act like a running program.
-const isMainModule = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1];
+// Compare REAL paths. When installed, `node_modules/.bin/a11yscan` is a
+// symlink, so process.argv[1] is the link path while import.meta.url is the
+// resolved file. A naive string compare is false for every installed user,
+// which silently skips main() and exits 0 having scanned nothing — a CI gate
+// would report "clean" without ever running. Caught by the clean-room install
+// test; see test/entrypoint.test.ts.
+const isMainModule = ((): boolean => {
+  const argv1 = process.argv[1];
+  if (argv1 === undefined) return false;
+  const resolve = (p: string): string => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  return resolve(fileURLToPath(import.meta.url)) === resolve(argv1);
+})();
 if (isMainModule) {
   main().then(
     (code) => process.exit(code),

@@ -35,11 +35,19 @@ because a tag can be moved:
 npx github:st0rm-bless3d/a11yscan#<full-commit-sha> https://example.com
 ```
 
-The first run downloads a Chromium build for Playwright if you do not already
-have one:
+Playwright does not download a browser at run time. Install Chromium once,
+using the Playwright that ships with a11yscan so the browser build matches:
 
 ```bash
 npx playwright install --with-deps chromium
+```
+
+If you see `Executable doesn't exist at .../chromium_headless_shell-<n>`, the
+installed browser build does not match this package's Playwright. Run the
+install through the local copy instead:
+
+```bash
+./node_modules/.bin/playwright install --with-deps chromium
 ```
 
 From a clone:

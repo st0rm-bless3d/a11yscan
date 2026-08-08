@@ -44,9 +44,15 @@ runs:
       shell: bash
       run: npm ci --omit=dev --prefix "${{ github.action_path }}"
 
+    # Install the browser with the SAME Playwright the package resolved. A
+    # pinned `npx playwright@X install` downloads the browser build that
+    # version expects, which will not match if the package resolves a
+    # different Playwright — the scan then fails with "Executable doesn't
+    # exist at .../chromium_headless_shell-<other-build>". Verified in a
+    # clean-room install.
     - name: Install Chromium for Playwright
       shell: bash
-      run: npx --yes playwright@1.50.1 install --with-deps chromium
+      run: "${{ github.action_path }}/node_modules/.bin/playwright install --with-deps chromium"
 
     - name: Run a11yscan
       id: scan
