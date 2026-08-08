@@ -36,7 +36,20 @@ Options:
                          A11YSCAN_LLM_KEY / A11YSCAN_LLM_MODEL) for a short
                          plain-English fix per violation. Falls back to
                          axe's own help text if unset or unreachable.
+  --no-auto-install     Do not download Chromium if it is missing. The scan
+                         fails with exit code 2 and the command to run
+                         instead. Use this in CI that must not pull ~150MB
+                         at scan time. Same effect as A11YSCAN_AUTO_INSTALL=0.
+  --auto-install        Force the download back on, overriding
+                         A11YSCAN_AUTO_INSTALL=0 from the environment.
   -h, --help            Show this help.
+
+First run: a11yscan needs a Chromium build matching its bundled Playwright.
+If it is missing, a11yscan downloads it once (about 150MB) and prints a notice
+on stderr before starting. It is cached per user (~/.cache/ms-playwright on
+Linux, ~/Library/Caches/ms-playwright on macOS), so later runs start straight
+away. On a bare container image you may also need Chromium's system libraries;
+a11yscan will not install OS packages, but it tells you the command if so.
 
 Examples:
   npx a11yscan https://example.com
@@ -54,15 +67,26 @@ interface ParsedArgs {
   minImpact: Impact;
   exitCode: boolean;
   fixHints: boolean;
+  autoInstall: boolean;
   help: boolean;
 }
 
-export function parseArgs(argv: string[]): ParsedArgs {
+/** Env default for auto-install, so CI can switch it off without editing the
+ * command line. `0`, `false`, `no` and `off` disable it; anything else (and
+ * unset) leaves it on. */
+export function autoInstallDefault(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env["A11YSCAN_AUTO_INSTALL"];
+  if (raw === undefined || raw === "") return true;
+  return !["0", "false", "no", "off"].includes(raw.trim().toLowerCase());
+}
+
+export function parseArgs(argv: string[], env: NodeJS.ProcessEnv = process.env): ParsedArgs {
   const urls: string[] = [];
   let json = false;
   let minImpact: Impact = "minor";
   let exitCode = false;
   let fixHints = false;
+  let autoInstall = autoInstallDefault(env);
   let help = false;
 
   for (let i = 0; i < argv.length; i++) {
@@ -76,6 +100,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
         break;
       case "--fix-hints":
         fixHints = true;
+        break;
+      case "--no-auto-install":
+        autoInstall = false;
+        break;
+      case "--auto-install":
+        autoInstall = true;
         break;
       case "-h":
       case "--help":
@@ -106,7 +136,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
   }
 
-  return { urls, json, minImpact, exitCode, fixHints, help };
+  return { urls, json, minImpact, exitCode, fixHints, autoInstall, help };
 }
 
 export class UsageError extends Error {}
@@ -133,7 +163,7 @@ async function main(): Promise<number> {
   const reports: ScanReport[] = [];
   try {
     for (const url of args.urls) {
-      let report = await scanUrl(url);
+      let report = await scanUrl(url, { autoInstall: args.autoInstall });
       if (args.fixHints && !report.error && report.violations.length > 0) {
         const hints = await fixGuidanceFor(
           report.violations.map((v) => ({ id: v.id, description: v.description, help: v.help, impact: v.impact })),

@@ -58,6 +58,11 @@ runs:
       id: scan
       shell: bash
       env:
+        # The step above already installed the matching browser, so the CLI's
+        # first-run auto-download must never fire here. Switching it off keeps
+        # the job deterministic: a broken install step fails loudly at that
+        # step instead of turning into a surprise 150MB download mid-scan.
+        A11YSCAN_AUTO_INSTALL: "0"
         A11YSCAN_URL: ${{ inputs.url }}
         A11YSCAN_MIN_IMPACT: ${{ inputs.min-impact }}
         A11YSCAN_FIX_HINTS: ${{ inputs.fix-hints }}

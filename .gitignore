@@ -3,3 +3,6 @@ node_modules/
 # Action both run the built CLI with no build step. Rebuild with `npm run build`.
 *.log
 .env
+
+# npm pack output from clean-container verification runs.
+*.tgz

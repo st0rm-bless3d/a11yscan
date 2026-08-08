@@ -12,16 +12,85 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { chromium, type Browser } from "playwright";
 import { getConfig } from "./config.js";
+import {
+  BrowserSetupError,
+  browserSetupGuidance,
+  classifyLaunchFailure,
+  installChromium,
+  playwrightVersion,
+  resolvePlaywrightCli,
+} from "./browser-setup.js";
 import { buildReport, errorScanReport, type AxeResults, type ScanReport } from "./report.js";
 
 let browserPromise: Promise<Browser> | null = null;
 
-async function getBrowser(): Promise<Browser> {
+function launchChromium(): Promise<Browser> {
+  return chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--no-zygote"],
+  });
+}
+
+/**
+ * Launch Chromium, recovering from the one failure that every first-time user
+ * hit: no Chromium build on disk for the Playwright this package resolved.
+ *
+ * At most ONE install and ONE retry per process. The result (including a
+ * rejection) is cached by getBrowser(), so a multi-URL run never re-attempts a
+ * ~150MB download per URL.
+ */
+async function launchWithSetup(autoInstall: boolean): Promise<Browser> {
+  try {
+    return await launchChromium();
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err);
+    const kind = classifyLaunchFailure(msg);
+
+    if (kind !== "missing-browser") {
+      throw new BrowserSetupError(browserSetupGuidance(kind, { autoInstall, upstream: msg }), kind);
+    }
+    if (!autoInstall) {
+      throw new BrowserSetupError(browserSetupGuidance(kind, { autoInstall: false }), kind);
+    }
+
+    const cli = resolvePlaywrightCli();
+    if (!cli) {
+      const ctx = { autoInstall, installFailure: "could not locate the Playwright CLI in a11yscan's own node_modules" };
+      throw new BrowserSetupError(browserSetupGuidance(kind, ctx), kind);
+    }
+
+    // Never silent: this downloads roughly 150MB. stderr, so `--json` stdout
+    // stays parseable.
+    const version = playwrightVersion();
+    process.stderr.write(
+      `a11yscan: Chromium for Playwright ${version ?? "(bundled)"} is not installed. ` +
+        `Downloading it now — about 150MB, once, then cached for future runs.\n`,
+    );
+
+    const outcome = installChromium(cli);
+    if (!outcome.ok) {
+      throw new BrowserSetupError(browserSetupGuidance(kind, { autoInstall, installFailure: outcome.reason }), kind);
+    }
+
+    try {
+      return await launchChromium();
+    } catch (err2) {
+      // The install succeeded, so a failure here is a DIFFERENT problem —
+      // most often missing OS shared libraries. Classify it again rather than
+      // reporting it as another missing browser.
+      const msg2 = (err2 as Error).message ?? String(err2);
+      const kind2 = classifyLaunchFailure(msg2);
+      throw new BrowserSetupError(
+        browserSetupGuidance(kind2, { autoInstall, afterInstall: true, upstream: msg2 }),
+        kind2,
+      );
+    }
+  }
+}
+
+async function getBrowser(autoInstall: boolean): Promise<Browser> {
   if (!browserPromise) {
-    browserPromise = chromium.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--no-zygote"],
-    });
+    browserPromise = launchWithSetup(autoInstall);
   }
   return browserPromise;
 }
@@ -36,6 +105,17 @@ export async function closeBrowser(): Promise<void> {
 
 export interface ScanOptions {
   timeoutMs?: number;
+  /**
+   * Download the matching Chromium build if it is missing.
+   *
+   * Defaults to FALSE for programmatic callers, and the CLI passes `true`
+   * explicitly. The install is a synchronous `spawnSync`, so it blocks the
+   * event loop for the length of a ~150MB download; a server that embedded
+   * `scanUrl` would stop answering requests for up to ten minutes. That is an
+   * acceptable trade for a one-shot CLI process and not for a library, so the
+   * two defaults differ on purpose.
+   */
+  autoInstall?: boolean;
 }
 
 /**
@@ -62,7 +142,7 @@ export async function scanUrl(rawUrl: string, opts: ScanOptions = {}): Promise<S
   const notes: string[] = [];
   let context: Awaited<ReturnType<Browser["newContext"]>> | null = null;
   try {
-    const browser = await getBrowser();
+    const browser = await getBrowser(opts.autoInstall ?? false);
     context = await browser.newContext({
       acceptDownloads: false,
       userAgent: config.scan.userAgent,
@@ -90,10 +170,20 @@ export async function scanUrl(rawUrl: string, opts: ScanOptions = {}): Promise<S
 
     return buildReport(url.toString(), url.hostname, Date.now() - start, axe, notes);
   } catch (err) {
+    // A browser-setup failure already carries a purpose-written message with
+    // the exact command to run. Pass it through untouched: wrapping it in
+    // "Could not load the page for scanning (...)" and slicing to 200 chars is
+    // what used to cut Playwright's own instructions in half and leave the
+    // user staring at half a box-drawing border.
+    if (err instanceof BrowserSetupError) {
+      return errorScanReport(url.toString(), url.hostname, Date.now() - start, err.message);
+    }
     const msg = (err as Error).message ?? String(err);
+    // Not truncated here. The report carries the full text; format.ts decides
+    // how much of it to render, and preserves any actionable line when it trims.
     const friendly = /timeout/i.test(msg)
       ? "The scan timed out."
-      : `Could not load the page for scanning (${msg.slice(0, 200)}).`;
+      : `Could not load the page for scanning: ${msg}`;
     return errorScanReport(url.toString(), url.hostname, Date.now() - start, friendly);
   } finally {
     if (context) await context.close().catch(() => {});

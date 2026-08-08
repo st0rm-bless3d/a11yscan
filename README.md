@@ -18,13 +18,13 @@ tag.
 Run without installing:
 
 ```bash
-npx github:st0rm-bless3d/a11yscan#v0.1.0 https://example.com
+npx github:st0rm-bless3d/a11yscan#v0.1.1 https://example.com
 ```
 
 Install as a dev dependency:
 
 ```bash
-npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.0
+npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.1
 npx a11yscan https://example.com
 ```
 
@@ -35,21 +35,6 @@ because a tag can be moved:
 npx github:st0rm-bless3d/a11yscan#<full-commit-sha> https://example.com
 ```
 
-Playwright does not download a browser at run time. Install Chromium once,
-using the Playwright that ships with a11yscan so the browser build matches:
-
-```bash
-npx playwright install --with-deps chromium
-```
-
-If you see `Executable doesn't exist at .../chromium_headless_shell-<n>`, the
-installed browser build does not match this package's Playwright. Run the
-install through the local copy instead:
-
-```bash
-./node_modules/.bin/playwright install --with-deps chromium
-```
-
 From a clone:
 
 ```bash
@@ -58,6 +43,64 @@ cd a11yscan
 npm install && npm run build
 node dist/cli.js https://example.com
 ```
+
+## What the first run does
+
+a11yscan drives a real Chromium through Playwright, and installing the package
+does not put a browser on disk. So the first scan on a new machine downloads
+one: about 150MB, once. a11yscan prints a notice on stderr before it starts and
+the progress bar comes from Playwright.
+
+The browser is cached per user, not per project:
+
+| Platform | Cache location |
+|---|---|
+| Linux | `~/.cache/ms-playwright` |
+| macOS | `~/Library/Caches/ms-playwright` |
+| Windows | `%USERPROFILE%\AppData\Local\ms-playwright` |
+| Any (override) | `$PLAYWRIGHT_BROWSERS_PATH` |
+
+Later runs start in a couple of seconds and download nothing. The download is
+done by the Playwright that ships inside a11yscan, so the browser revision
+always matches the one it expects. A globally resolved `npx playwright install`
+can fetch a different revision, which is why using the official
+`mcr.microsoft.com/playwright` image was not enough on its own — its
+preinstalled browsers are a different build.
+
+### If you would rather control it yourself
+
+Install Chromium ahead of time and nothing is downloaded during a scan:
+
+```bash
+npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.1
+./node_modules/.bin/playwright install --with-deps chromium
+npx a11yscan https://example.com
+```
+
+Use `--no-auto-install` (or `A11YSCAN_AUTO_INSTALL=0`) to make a missing
+browser a hard failure instead of a download. The scan then exits `2` and
+prints the command to run. This is the right setting for CI that must not pull
+150MB at scan time:
+
+```bash
+npx a11yscan https://example.com --exit-code --no-auto-install
+```
+
+### System libraries
+
+Downloading the browser is not always enough. Chromium needs OS packages
+(`libnspr4`, `libnss3`, `libdbus-1-3` and friends) that a bare `node:22` image
+does not ship. a11yscan will not install OS packages — that needs root and runs
+your package manager — so it reports that case separately and tells you what to
+run:
+
+```bash
+./node_modules/.bin/playwright install --with-deps chromium   # browser + packages
+./node_modules/.bin/playwright install-deps chromium          # packages only
+```
+
+Ordinary developer machines (macOS, a desktop Linux install) and the official
+`mcr.microsoft.com/playwright` images already have these.
 
 ## Usage
 
@@ -71,6 +114,8 @@ a11yscan <url> [<url2> ...] [options]
 | `--min-impact <level>` | Only report/count violations at or above this impact: `minor \| moderate \| serious \| critical`. Default: `minor` (report everything). |
 | `--exit-code` | Exit with code `1` if any violation at/above `--min-impact` was found. Without this flag the process always exits `0` on a clean scan run. |
 | `--fix-hints` | Ask an OpenAI-compatible LLM for a short plain-English fix per violation. Falls back to axe's own help text if unset or unreachable — never fails the run. |
+| `--no-auto-install` | Do not download Chromium if it is missing. The scan fails with exit code `2` and prints the command to run. Same as `A11YSCAN_AUTO_INSTALL=0`. |
+| `--auto-install` | Force the first-run download back on, overriding `A11YSCAN_AUTO_INSTALL=0` from the environment. |
 | `-h, --help` | Show usage. |
 
 ### Exit codes
@@ -80,15 +125,15 @@ a11yscan <url> [<url2> ...] [options]
 - **1** — `--exit-code` was passed AND at least one scanned URL had a
   violation at or above `--min-impact`.
 - **2** — a usage error (bad flags, no URL given), or at least one URL could
-  not be scanned at all (invalid URL, navigation failure, timeout). This is
-  checked regardless of `--exit-code` — a failed scan is never reported as
-  "clean."
+  not be scanned at all (invalid URL, navigation failure, timeout, or a browser
+  that could not be installed or started). This is checked regardless of
+  `--exit-code` — a failed scan is never reported as "clean."
 
 ### Examples
 
 These use the short `npx a11yscan` form, which works once the package is
 installed in the project (see "Install"). Without installing, use the full
-`npx github:st0rm-bless3d/a11yscan#v0.1.0 ...` form.
+`npx github:st0rm-bless3d/a11yscan#v0.1.1 ...` form.
 
 Human-readable report, everything shown, always exits 0:
 
@@ -145,7 +190,7 @@ jobs:
   a11yscan:
     runs-on: ubuntu-latest
     steps:
-      - uses: st0rm-bless3d/a11yscan@v0.1.0
+      - uses: st0rm-bless3d/a11yscan@v0.1.1
         with:
           url: https://staging.example.com
           min-impact: serious
@@ -154,7 +199,7 @@ jobs:
 With fix hints (requires the LLM env vars as workflow secrets):
 
 ```yaml
-      - uses: st0rm-bless3d/a11yscan@v0.1.0
+      - uses: st0rm-bless3d/a11yscan@v0.1.1
         with:
           url: https://staging.example.com
           min-impact: serious
@@ -195,6 +240,18 @@ This is defense in depth, not a response to any live incident: today
 `A11YSCAN_LLM_URL` is a value you set yourself. It stays anyway because a
 mistyped or compromised config value should not be able to make this
 process silently reach internal network services.
+
+**The first-run browser install spawns a child process**, so it is scoped
+narrowly. The interpreter is the running Node binary (`process.execPath`); the
+script is the Playwright CLI resolved by absolute path out of a11yscan's own
+`node_modules`, and is refused if it does not sit inside that package
+directory; the arguments are the fixed literal list `["install", "chromium"]`;
+and it runs with `shell: false`, so nothing is word-split or glob-expanded. No
+value you pass on the command line — URL, flag, or environment variable —
+reaches that argument list, so a scan target cannot influence what is executed.
+It installs browsers only, never OS packages: `--with-deps` needs root and runs
+your package manager, which is a much larger action than a scan should take on
+its own. Use `--no-auto-install` to disable the child process entirely.
 
 **No compliance claims.** This tool detects and reports; it does not
 certify. You will not see the words "compliant," "certified," or

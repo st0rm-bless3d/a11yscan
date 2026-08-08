@@ -1,6 +1,6 @@
 {
   "name": "a11yscan",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open-source WCAG accessibility scanner CLI and GitHub Action (headless Chromium + axe-core). Scans URLs on your own machine's network, prioritized report by impact, optional LLM fix hints.",
   "keywords": [
     "accessibility",
@@ -36,6 +36,7 @@
   "files": [
     "LICENSE",
     "README.md",
+    "CHANGELOG.md",
     "action.yml",
     "dist"
   ],
