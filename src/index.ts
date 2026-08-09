@@ -11,6 +11,8 @@
 export { scanUrl, closeBrowser, type ScanOptions } from "./scan.js";
 export {
   buildReport,
+  normalizeImpact,
+  safeHttpUrl,
   applyFixHints,
   filterByMinImpact,
   decideExitCode,
@@ -28,6 +30,12 @@ export {
 } from "./report.js";
 export { fixGuidanceFor, type RuleForGuidance } from "./fixhints.js";
 export { formatHuman, formatJson, toJson, sanitizeErrorText, type SanitizeOptions } from "./format.js";
+// Re-exported so a consumer that must dial a validated address (rather than
+// re-resolving the hostname and losing the DNS-rebind race) can reuse this
+// implementation instead of writing another one. gov-index/ does exactly that
+// for its robots.txt fetch and for every main-frame document it fetches on the
+// browser's behalf. Additive only: nothing in the CLI's own behaviour changes.
+export { pinnedFetch, PinnedFetchError, type PinnedResponse, type PinnedFetchOptions } from "./pinnedfetch.js";
 export {
   classifyLaunchFailure,
   browserSetupGuidance,

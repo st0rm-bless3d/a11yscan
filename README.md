@@ -11,27 +11,33 @@ axe's help text (or an optional LLM-generated plain-English fix hint).
 
 ## Install
 
-Distributed from this repository. There is no npm-registry package; the
-commands below are the supported ones and are verified against the published
-tag.
+Published on npm as `@althorlabs/a11yscan`. The scope is not decoration: the
+bare name `a11yscan` on npm belongs to an unrelated project, so an unscoped
+command would run someone else's package. Every command below is verified
+against the published artifact from a container that had never run this tool.
 
 Run without installing:
 
 ```bash
-npx github:st0rm-bless3d/a11yscan#v0.1.1 https://example.com
+npx @althorlabs/a11yscan https://example.com
 ```
 
 Install as a dev dependency:
 
 ```bash
-npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.1
+npm install --save-dev @althorlabs/a11yscan
 npx a11yscan https://example.com
 ```
 
-Pin a tag (as above) or a full commit SHA. A SHA is the strongest guarantee,
-because a tag can be moved:
+The first run downloads a Chromium build (~115 MB) and caches it. On an image
+without Chromium's system libraries, the CLI prints the exact root command to
+run first; it will not install OS packages on your behalf.
+
+Installing straight from GitHub also works and is the way to pin a full commit
+SHA, which is the strongest guarantee because a tag can be moved:
 
 ```bash
+npx github:st0rm-bless3d/a11yscan#v0.1.2 https://example.com
 npx github:st0rm-bless3d/a11yscan#<full-commit-sha> https://example.com
 ```
 
@@ -72,7 +78,7 @@ preinstalled browsers are a different build.
 Install Chromium ahead of time and nothing is downloaded during a scan:
 
 ```bash
-npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.1
+npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.2
 ./node_modules/.bin/playwright install --with-deps chromium
 npx a11yscan https://example.com
 ```
@@ -133,7 +139,7 @@ a11yscan <url> [<url2> ...] [options]
 
 These use the short `npx a11yscan` form, which works once the package is
 installed in the project (see "Install"). Without installing, use the full
-`npx github:st0rm-bless3d/a11yscan#v0.1.1 ...` form.
+`npx github:st0rm-bless3d/a11yscan#v0.1.2 ...` form.
 
 Human-readable report, everything shown, always exits 0:
 
@@ -190,7 +196,7 @@ jobs:
   a11yscan:
     runs-on: ubuntu-latest
     steps:
-      - uses: st0rm-bless3d/a11yscan@v0.1.1
+      - uses: st0rm-bless3d/a11yscan@v0.1.2
         with:
           url: https://staging.example.com
           min-impact: serious
@@ -199,7 +205,7 @@ jobs:
 With fix hints (requires the LLM env vars as workflow secrets):
 
 ```yaml
-      - uses: st0rm-bless3d/a11yscan@v0.1.1
+      - uses: st0rm-bless3d/a11yscan@v0.1.2
         with:
           url: https://staging.example.com
           min-impact: serious

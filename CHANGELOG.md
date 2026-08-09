@@ -4,6 +4,19 @@ All notable changes to a11yscan. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the tags
 published on `github.com/st0rm-bless3d/a11yscan`.
 
+## 0.1.2
+
+Published to npm as `@althorlabs/a11yscan`. No functional change from 0.1.1.
+
+The package was previously installable only from GitHub, because the bare name
+`a11yscan` on npm belongs to an unrelated project. Scoping resolves that, so the
+documented command is now:
+
+    npx @althorlabs/a11yscan https://example.com --min-impact serious --exit-code
+
+The GitHub install path (`npx github:st0rm-bless3d/a11yscan#v0.1.2`) keeps
+working and remains the way to pin a full commit SHA.
+
 ## 0.1.1
 
 Fixes a first-run failure that made the advertised one-line command unusable
