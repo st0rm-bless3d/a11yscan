@@ -4,6 +4,19 @@ All notable changes to a11yscan. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the tags
 published on `github.com/st0rm-bless3d/a11yscan`.
 
+## 0.1.3
+
+Metadata and release-plumbing only; no change to scanning behavior.
+
+- `action.yml` description shortened from 153 to 124 characters. GitHub
+  Marketplace rejects an Action whose description is 125 characters or more,
+  which blocked the listing entirely.
+- Releases now publish to npm through **Trusted Publishing (OIDC)** from a
+  GitHub-hosted runner, so no npm credential is stored anywhere. The bootstrap
+  token used for 0.1.2 is revoked.
+- The release workflow refuses to publish when the git tag and `package.json`
+  version disagree.
+
 ## 0.1.2
 
 Published to npm as `@althorlabs/a11yscan`. No functional change from 0.1.1.

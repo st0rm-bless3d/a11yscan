@@ -1,6 +1,6 @@
 {
   "name": "@althorlabs/a11yscan",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Open-source WCAG accessibility scanner CLI and GitHub Action (headless Chromium + axe-core). Scans URLs on your own machine's network, prioritized report by impact, optional LLM fix hints.",
   "keywords": [
     "accessibility",

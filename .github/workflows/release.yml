@@ -1,0 +1,77 @@
+# Publish to npm with Trusted Publishing (OIDC) — no stored npm credential.
+#
+# Why this exists: 0.1.2 was published with a granular access token pasted into
+# a shell. Deleting that token's local file did not revoke it, so the token
+# remains valid until it is revoked server-side. This workflow removes the need
+# for any long-lived npm credential; the bootstrap token is then revoked in the
+# npm UI and confirmed gone.
+#
+# Prerequisites, both owner-side and one-time:
+#   1. On npmjs.com -> @althorlabs/a11yscan -> Settings -> Trusted Publisher,
+#      link this repository and this workflow filename (release.yml).
+#   2. Revoke the bootstrap granular token and confirm it no longer lists.
+#
+# Constraints that are not negotiable:
+#   * `id-token: write` is required for npm to receive an OIDC token.
+#   * Must run on a GitHub-HOSTED runner. npm Trusted Publishing does not
+#     support self-hosted runners, so this cannot be moved onto Orion.
+#   * npm CLI must be new enough to support OIDC publishing, so the workflow
+#     upgrades npm explicitly rather than trusting the runner image default.
+#
+# This is not exercised by a throwaway release. It runs on the next legitimate
+# version tag; until then it is configured and idle.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # The runner's bundled npm may predate OIDC publishing support.
+      - name: Use an npm that supports trusted publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      # prepublishOnly also builds and tests, but running them here means a
+      # failure is attributed to the right step instead of to "publish failed".
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      # Refuse to publish a tag whose version does not match package.json.
+      # A mismatch here means the tag and the artifact disagree, which is the
+      # class of inconsistency the 0.1.2 rename existed to avoid.
+      - name: Verify tag matches package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $tag does not match package.json $pkg" >&2
+            exit 1
+          fi
+
+      # No NODE_AUTH_TOKEN. Authentication is the OIDC exchange.
+      - name: Publish
+        run: npm publish --provenance --access public

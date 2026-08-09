@@ -37,7 +37,7 @@ Installing straight from GitHub also works and is the way to pin a full commit
 SHA, which is the strongest guarantee because a tag can be moved:
 
 ```bash
-npx github:st0rm-bless3d/a11yscan#v0.1.2 https://example.com
+npx github:st0rm-bless3d/a11yscan#v0.1.3 https://example.com
 npx github:st0rm-bless3d/a11yscan#<full-commit-sha> https://example.com
 ```
 
@@ -78,7 +78,7 @@ preinstalled browsers are a different build.
 Install Chromium ahead of time and nothing is downloaded during a scan:
 
 ```bash
-npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.2
+npm install --save-dev github:st0rm-bless3d/a11yscan#v0.1.3
 ./node_modules/.bin/playwright install --with-deps chromium
 npx a11yscan https://example.com
 ```
@@ -139,7 +139,7 @@ a11yscan <url> [<url2> ...] [options]
 
 These use the short `npx a11yscan` form, which works once the package is
 installed in the project (see "Install"). Without installing, use the full
-`npx github:st0rm-bless3d/a11yscan#v0.1.2 ...` form.
+`npx github:st0rm-bless3d/a11yscan#v0.1.3 ...` form.
 
 Human-readable report, everything shown, always exits 0:
 
@@ -196,7 +196,7 @@ jobs:
   a11yscan:
     runs-on: ubuntu-latest
     steps:
-      - uses: st0rm-bless3d/a11yscan@v0.1.2
+      - uses: st0rm-bless3d/a11yscan@v0.1.3
         with:
           url: https://staging.example.com
           min-impact: serious
@@ -205,7 +205,7 @@ jobs:
 With fix hints (requires the LLM env vars as workflow secrets):
 
 ```yaml
-      - uses: st0rm-bless3d/a11yscan@v0.1.2
+      - uses: st0rm-bless3d/a11yscan@v0.1.3
         with:
           url: https://staging.example.com
           min-impact: serious
