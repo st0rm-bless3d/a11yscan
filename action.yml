@@ -1,5 +1,5 @@
 name: "a11yscan"
-description: "Run the a11yscan WCAG accessibility scanner (axe-core + headless Chromium) against a URL and fail the job on violations at or above a severity threshold."
+description: "Scan URLs for WCAG accessibility violations with axe-core and headless Chromium, failing the job above a severity threshold."
 author: "althor.dev"
 branding:
   icon: "eye"
