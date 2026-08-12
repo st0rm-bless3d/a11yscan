@@ -299,4 +299,4 @@ MIT © althor.dev — see [LICENSE](./LICENSE).
 
 ## Done-for-you baseline report
 
-Prefer a prioritized, fixed-scope accessibility baseline for a public site without wiring the CLI into CI? See the paid report offer (public sample, commerce not yet enabled): https://althor.dev/offers/accessibility-baseline-report/?src=github
+Explore the [public .gov accessibility index](https://a11yscan.althor.dev/gov/), a dated automated WCAG snapshot. Prefer a prioritized, fixed-scope accessibility baseline for a public site without wiring the CLI into CI? See the paid report offer (public sample, commerce not yet enabled): https://althor.dev/offers/accessibility-baseline-report/?src=github
